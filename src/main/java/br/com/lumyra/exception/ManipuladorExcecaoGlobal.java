@@ -50,6 +50,6 @@ public class ManipuladorExcecaoGlobal {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<RespostaErro> tratarErroGenerico(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(new RespostaErro(500, "Erro interno do servidor", LocalDateTime.now()));
+            .body(new RespostaErro(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Erro interno do servidor", LocalDateTime.now()));
     }
 }

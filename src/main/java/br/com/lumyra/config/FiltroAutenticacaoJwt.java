@@ -1,10 +1,6 @@
 package br.com.lumyra.config;
 
 import br.com.lumyra.service.ServicoJwt;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -14,11 +10,17 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
 public class FiltroAutenticacaoJwt extends OncePerRequestFilter {
+
+    private static final int BEARER_PREFIX_LENGTH = 7;
 
     private final ServicoJwt servicoJwt;
     private final UserDetailsService userDetailsService;
@@ -36,7 +38,7 @@ public class FiltroAutenticacaoJwt extends OncePerRequestFilter {
             return;
         }
 
-        var token = authHeader.substring(7);
+        var token = authHeader.substring(BEARER_PREFIX_LENGTH);
         var email = servicoJwt.extrairNomeUsuario(token);
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
