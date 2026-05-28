@@ -1,10 +1,9 @@
 package br.com.lumyra;
 
+import br.com.lumyra.integration.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class LumyraApiApplicationTests {
+class LumyraApiApplicationTests extends IntegrationTestBase {
 
     @Test
     void contextLoads() {

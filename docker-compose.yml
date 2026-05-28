@@ -1,0 +1,44 @@
+# Stack de desenvolvimento local para a lumyra-api.
+# NÃO usar em produção — credenciais apenas para dev.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lumyra-postgres
+    environment:
+      POSTGRES_DB: lumyra_local
+      POSTGRES_USER: lumyra
+      POSTGRES_PASSWORD: lumyra
+    ports:
+      - "5432:5432"
+    volumes:
+      - lumyra_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lumyra -d lumyra_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - lumyra
+
+  redis:
+    image: redis:7-alpine
+    container_name: lumyra-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - lumyra_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - lumyra
+
+volumes:
+  lumyra_pg_data:
+  lumyra_redis_data:
+
+networks:
+  lumyra:
+    driver: bridge

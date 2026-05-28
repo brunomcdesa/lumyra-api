@@ -1,0 +1,26 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+  data:
+    redis:
+      repositories:
+        enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+app:
+  jwt:
+    secret: test-secret-please-override-test-secret-please-override
+    expiration-ms: 900000
+
+logging:
+  level:
+    org.springframework: WARN
+    org.hibernate: WARN
+    br.com.lumyra: INFO
