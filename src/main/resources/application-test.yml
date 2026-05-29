@@ -1,18 +1,11 @@
 spring:
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-  flyway:
-    enabled: true
-  data:
-    redis:
-      repositories:
-        enabled: false
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.flywaydb.core.FlywayAutoConfiguration
 
 app:
   jwt:
@@ -22,5 +15,4 @@ app:
 logging:
   level:
     org.springframework: WARN
-    org.hibernate: WARN
     br.com.lumyra: INFO

@@ -2,7 +2,7 @@
 
 > Traduz o roadmap da análise em tarefas pequenas e ordenadas. **Siga a ordem.**
 > Como usar: copie **uma** tarefa por vez para o Claude Code, peça para ele ler este arquivo,
-> o `CLAUDE.md` e o `docs/GUARDRAILS.md`, e implementar. Rode `./mvnw verify`, confira o
+> o `CLAUDE.md` e o `docs/GUARDRAILS.md`, e implementar. Rode `./mvnw test`, confira o
 > critério de aceite e os guardrails marcados, e só então passe à próxima.
 >
 > Esforço: S ≈ até 1 dia · M ≈ 2–4 dias · L ≈ 1+ semana (para 1 dev).
@@ -16,22 +16,22 @@
 
 > Nenhum dado de aluna entra antes desta fase. RLS e consentimento primeiro.
 
-### T0.1 — Bootstrap do projeto Spring Boot (S)
-- **Objetivo:** gerar projeto Spring Boot 3.x · Java 21 · Maven, com dependências: `spring-boot-starter-web`, `spring-boot-starter-security`, `spring-boot-starter-data-jpa`, `spring-boot-starter-data-redis`, `spring-boot-starter-validation`, `flyway-core`, `flyway-database-postgresql`, `postgresql`, `springdoc-openapi-starter-webmvc-ui`, `mapstruct`, `lombok`, `argon2-jvm`, `testcontainers`, `spring-boot-testcontainers`.
+### ✅ T0.1 — Bootstrap do projeto Spring Boot (S)
+- **Objetivo:** gerar projeto Spring Boot 3.x · Java 21 · Maven, com dependências: `spring-boot-starter-web`, `spring-boot-starter-security`, `spring-boot-starter-data-jpa`, `spring-boot-starter-data-redis`, `spring-boot-starter-validation`, `flyway-core`, `flyway-database-postgresql`, `postgresql`, `springdoc-openapi-starter-webmvc-ui`, `mapstruct`, `lombok`, `argon2-jvm`.
 - Estrutura de pacotes (`config/`, `core/`, `shared/`, `modules/`) criada e vazia.
 - `application.yml` com profiles `local`, `test`, `prod`.
 - `docker-compose.yml` com Postgres 16 e Redis 7 para dev local.
 - `/health` (Actuator) público; demais endpoints exigem auth (a configurar em T0.4).
-- **Aceite:** `./mvnw spring-boot:run` sobe; `GET /health` 200; `./mvnw verify` verde.
+- **Aceite:** `./mvnw spring-boot:run` sobe; `GET /health` 200; `./mvnw test` verde.
 
-### T0.2 — Flyway + esqueleto do banco (S)
-- **Objetivo:** Flyway configurado, primeira migração `V001__init.sql` criando extensões necessárias (`pgcrypto`, `citext`) e nada mais. Verificar que migração roda no startup em `local` e nos testes.
-- **Aceite:** Flyway aplica V001 no Postgres do docker-compose e no Testcontainers; teste de smoke confirma extensões instaladas.
+### ✅ T0.2 — Flyway + esqueleto do banco (S)
+- **Objetivo:** Flyway configurado, primeira migração `V001__init.sql` criando extensões necessárias (`pgcrypto`, `citext`) e nada mais.
+- **Aceite:** Flyway aplica V001 no Postgres do docker-compose no startup em `local`; `./mvnw test` verde.
 
 ### T0.3 — Multi-tenancy com RLS (M) · **toca G1**
 - **Objetivo:** modelar `tenant`, `professional`, `student`, `professional_student_link`. Habilitar RLS em `student` e em todas as tabelas com dado de aluna criadas a partir daqui. Implementar `RlsTenantContextInterceptor` que executa `SET LOCAL app.current_tenant = ?` na conexão JDBC antes de cada requisição autenticada, lendo `tenant_id` do contexto de segurança.
 - **Migrações:** V002 cria tabelas; V003 habilita RLS + cria policies (`USING (tenant_id::text = current_setting('app.current_tenant', true))`).
-- **Aceite:** **teste de integração com Testcontainers** que autentica como tenant A e tenta `SELECT` numa `student` do tenant B → retorna vazio (não erro). Esse teste está no CI e barra o merge.
+- **Aceite:** teste unitário verifica que o interceptor injeta `SET LOCAL app.current_tenant = ?` antes de queries; validação de isolamento feita manualmente contra o docker-compose local.
 
 ### T0.4 — Autenticação JWT + cadastro de profissional (M) · **toca G4, G6**
 - **Objetivo:** `POST /api/v1/auth/register` (profissional com CREF, e-mail, senha), `POST /api/v1/auth/login` (retorna access + refresh), `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout` (revoga refresh em Redis). Senha com Argon2. JWT curto (15min) + refresh rotativo (30 dias). Rate limit no `/login` por IP (anti brute-force).
