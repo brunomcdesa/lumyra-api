@@ -41,6 +41,10 @@ public class ServicoJwt {
         return extrairClaim(token, Claims::getSubject);
     }
 
+    public Integer extrairTenantId(String token) {
+        return extrairClaim(token, claims -> claims.get("tenant_id", Integer.class));
+    }
+
     private boolean isTokenExpirado(String token) {
         return extrairClaim(token, Claims::getExpiration).before(new Date());
     }

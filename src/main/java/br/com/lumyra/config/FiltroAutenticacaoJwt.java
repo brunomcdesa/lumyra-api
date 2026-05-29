@@ -1,5 +1,6 @@
 package br.com.lumyra.config;
 
+import br.com.lumyra.core.rls.TenantContextHolder;
 import br.com.lumyra.service.ServicoJwt;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
@@ -39,20 +40,35 @@ public class FiltroAutenticacaoJwt extends OncePerRequestFilter {
         }
 
         var token = authHeader.substring(BEARER_PREFIX_LENGTH);
+
+        try {
+            autenticarRequisicao(request, token);
+            filterChain.doFilter(request, response);
+        } finally {
+            // Evita vazar o tenant entre requisições na mesma thread do pool.
+            TenantContextHolder.clear();
+        }
+    }
+
+    private void autenticarRequisicao(HttpServletRequest request, String token) {
         var email = servicoJwt.extrairNomeUsuario(token);
 
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            var userDetails = userDetailsService.loadUserByUsername(email);
-
-            if (servicoJwt.isTokenValido(token, userDetails)) {
-                var authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
+        if (email == null || SecurityContextHolder.getContext().getAuthentication() != null) {
+            return;
         }
 
-        filterChain.doFilter(request, response);
+        var userDetails = userDetailsService.loadUserByUsername(email);
+        if (!servicoJwt.isTokenValido(token, userDetails)) {
+            return;
+        }
+
+        var authToken = new UsernamePasswordAuthenticationToken(
+            userDetails, null, userDetails.getAuthorities()
+        );
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+
+        // Disponibiliza o tenant para o interceptor de RLS (G1).
+        TenantContextHolder.set(servicoJwt.extrairTenantId(token));
     }
 }
