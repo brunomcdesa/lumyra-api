@@ -47,6 +47,13 @@ public class ManipuladorExcecaoGlobal {
             .body(new RespostaErro(HttpStatus.FORBIDDEN.value(), "Acesso negado", LocalDateTime.now()));
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<RespostaErro> tratarRateLimit(TooManyRequestsException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(new RespostaErro(HttpStatus.TOO_MANY_REQUESTS.value(), ex.getMessage(),
+                LocalDateTime.now()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<RespostaErro> tratarErroGenerico(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

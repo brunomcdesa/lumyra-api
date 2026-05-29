@@ -19,15 +19,15 @@ public class ServicoJwt {
     @Value("${app.jwt.secret}")
     private String segredoJwt;
 
-    @Value("${app.jwt.expiration-ms}")
-    private long expiracaoMs;
+    @Value("${app.jwt.access-expiration-ms}")
+    private long accessExpiracaoMs;
 
     public String gerarToken(UserDetails userDetails, Map<String, Object> claimsExtras) {
         return Jwts.builder()
             .claims(claimsExtras)
             .subject(userDetails.getUsername())
             .issuedAt(new Date())
-            .expiration(new Date(System.currentTimeMillis() + expiracaoMs))
+            .expiration(new Date(System.currentTimeMillis() + accessExpiracaoMs))
             .signWith(obterChaveAssinatura())
             .compact();
     }

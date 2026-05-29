@@ -10,7 +10,12 @@ spring:
 app:
   jwt:
     secret: test-secret-please-override-test-secret-please-override
-    expiration-ms: 900000
+    access-expiration-ms: 900000
+    refresh-expiration-ms: 2592000000
+  auth:
+    rate-limit:
+      max-attempts: 5
+      window-seconds: 900
 
 logging:
   level:
