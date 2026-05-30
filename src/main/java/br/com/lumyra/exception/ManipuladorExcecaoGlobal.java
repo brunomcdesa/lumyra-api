@@ -5,12 +5,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
+@ControllerAdvice
 @RestControllerAdvice
 public class ManipuladorExcecaoGlobal {
 
@@ -39,6 +41,12 @@ public class ManipuladorExcecaoGlobal {
     public ResponseEntity<RespostaErro> tratarCredenciaisInvalidas(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(new RespostaErro(HttpStatus.UNAUTHORIZED.value(), "Credenciais inválidas", LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(ConsentimentoAusenteException.class)
+    public ResponseEntity<RespostaErro> tratarConsentimentoAusente(ConsentimentoAusenteException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(new RespostaErro(HttpStatus.FORBIDDEN.value(), ex.getMessage(), LocalDateTime.now()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

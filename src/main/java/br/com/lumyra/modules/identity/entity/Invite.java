@@ -9,6 +9,8 @@ import lombok.Setter;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,13 +19,13 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 /**
- * Aluna. Tabela com dado de aluna: protegida por RLS por tenant (G1).
+ * Convite de uma aluna por um profissional. Tabela com dado de aluna: protegida
+ * por RLS por tenant (G1). Só o hash SHA-256 do token é armazenado (G4).
  */
-@Table(name = "student")
+@Table(name = "invite")
 @Getter
 @Setter
 @Builder
@@ -31,38 +33,37 @@ import java.time.OffsetDateTime;
 @AllArgsConstructor
 @Entity
 @EqualsAndHashCode(of = "id")
-public class Student {
+public class Invite {
 
     @Id
-    @GeneratedValue(generator = "seq_student", strategy = GenerationType.SEQUENCE)
-    @SequenceGenerator(name = "seq_student", sequenceName = "seq_student", allocationSize = 1)
+    @GeneratedValue(generator = "seq_invite", strategy = GenerationType.SEQUENCE)
+    @SequenceGenerator(name = "seq_invite", sequenceName = "seq_invite", allocationSize = 1)
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
-    @Column(nullable = false, length = 150)
-    private String nome;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "student_id", nullable = false)
+    private Student student;
 
-    @Column(unique = true, length = 255)
+    @Column(nullable = false, length = 255)
     private String email;
 
-    @Column(name = "data_nascimento")
-    private LocalDate dataNascimento;
+    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
+    private String tokenHash;
 
-    /** Definida apenas quando a aluna aceita o convite (até lá fica nula). */
-    @Column(name = "senha_hash", length = 255)
-    private String senhaHash;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private InviteStatus status;
+
+    @Column(name = "expira_em", nullable = false)
+    private OffsetDateTime expiraEm;
 
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean ativo = true;
-
-    /** Soft-delete LGPD: marca quando a aluna pediu eliminação dos dados. */
-    @Column(name = "deletado_em")
-    private OffsetDateTime deletadoEm;
+    @Column(name = "aceito_em")
+    private OffsetDateTime aceitoEm;
 }

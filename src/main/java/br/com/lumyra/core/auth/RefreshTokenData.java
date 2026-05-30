@@ -1,4 +1,9 @@
 package br.com.lumyra.core.auth;
 
-public record RefreshTokenData(Integer professionalId, Integer tenantId, String email) {
+/**
+ * Dados guardados no Redis para um refresh token. {@code role} é
+ * {@code PROFESSIONAL} ou {@code STUDENT} e direciona qual repositório recarrega
+ * o usuário na renovação.
+ */
+public record RefreshTokenData(Integer usuarioId, Integer tenantId, String email, String role) {
 }

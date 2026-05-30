@@ -9,11 +9,13 @@ import br.com.lumyra.modules.identity.dto.LoginRequest;
 import br.com.lumyra.modules.identity.dto.RefreshRequest;
 import br.com.lumyra.modules.identity.dto.RegisterRequest;
 import br.com.lumyra.modules.identity.entity.Professional;
+import br.com.lumyra.modules.identity.entity.Student;
 import br.com.lumyra.modules.identity.entity.Tenant;
 import br.com.lumyra.modules.identity.repository.ProfessionalRepositorio;
+import br.com.lumyra.modules.identity.repository.StudentRepositorio;
 import br.com.lumyra.modules.identity.repository.TenantRepositorio;
 import br.com.lumyra.modules.identity.service.AuthService;
-import br.com.lumyra.modules.identity.service.ProfessionalDetailsService;
+import br.com.lumyra.modules.identity.service.UsuarioDetailsService;
 import br.com.lumyra.service.ServicoJwt;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -28,9 +30,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+    private static final String ROLE_PROFESSIONAL = "PROFESSIONAL";
+    private static final String ROLE_STUDENT = "STUDENT";
+
     private final ProfessionalRepositorio professionalRepositorio;
+    private final StudentRepositorio studentRepositorio;
     private final TenantRepositorio tenantRepositorio;
-    private final ProfessionalDetailsService professionalDetailsService;
+    private final UsuarioDetailsService usuarioDetailsService;
     private final ServicoJwt servicoJwt;
     private final RefreshTokenService refreshTokenService;
     private final RateLimitService rateLimitService;
@@ -62,14 +68,22 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse autenticar(LoginRequest request) {
-        var professional = professionalRepositorio.findByEmail(request.email())
-            .orElseThrow(() -> new BadCredentialsException("Credenciais inválidas"));
-
-        if (!passwordEncoder.matches(request.senha(), professional.getSenhaHash())) {
-            throw new BadCredentialsException("Credenciais inválidas");
+        var professional = professionalRepositorio.findByEmail(request.email());
+        if (professional.isPresent()) {
+            if (!passwordEncoder.matches(request.senha(), professional.get().getSenhaHash())) {
+                throw new BadCredentialsException("Credenciais inválidas");
+            }
+            return buildAuthResponse(professional.get());
         }
 
-        return buildAuthResponse(professional);
+        var student = studentRepositorio.findByEmail(request.email())
+            .filter(s -> s.getSenhaHash() != null && Boolean.TRUE.equals(s.getAtivo()))
+            .orElseThrow(() -> new BadCredentialsException("Credenciais inválidas"));
+
+        if (!passwordEncoder.matches(request.senha(), student.getSenhaHash())) {
+            throw new BadCredentialsException("Credenciais inválidas");
+        }
+        return buildAuthResponseAluna(student);
     }
 
     @Override
@@ -79,9 +93,14 @@ public class AuthServiceImpl implements AuthService {
 
         refreshTokenService.revogar(request.refreshToken());
 
-        var professional = professionalRepositorio.findById(data.professionalId())
-            .orElseThrow(() -> new BadCredentialsException("Profissional não encontrado"));
+        if (ROLE_STUDENT.equals(data.role())) {
+            var student = studentRepositorio.findById(data.usuarioId())
+                .orElseThrow(() -> new BadCredentialsException("Aluna não encontrada"));
+            return buildAuthResponseAluna(student);
+        }
 
+        var professional = professionalRepositorio.findById(data.usuarioId())
+            .orElseThrow(() -> new BadCredentialsException("Profissional não encontrado"));
         return buildAuthResponse(professional);
     }
 
@@ -95,12 +114,17 @@ public class AuthServiceImpl implements AuthService {
         return autenticar(request);
     }
 
+    /** Emite tokens para uma aluna recém-autenticada (ex.: auto-login ao aceitar convite). */
+    public AuthResponse emitirTokensAluna(Student aluna) {
+        return buildAuthResponseAluna(aluna);
+    }
+
     private AuthResponse buildAuthResponse(Professional professional) {
-        var userDetails = professionalDetailsService.loadUserByUsername(professional.getEmail());
+        var userDetails = usuarioDetailsService.loadUserByUsername(professional.getEmail());
 
         Map<String, Object> claims = Map.of(
             "tenant_id", professional.getTenant().getId(),
-            "role", "PROFESSIONAL"
+            "role", ROLE_PROFESSIONAL
         );
 
         String accessToken = servicoJwt.gerarToken(userDetails, claims);
@@ -108,7 +132,28 @@ public class AuthServiceImpl implements AuthService {
         String refreshToken = refreshTokenService.salvar(new RefreshTokenData(
             professional.getId(),
             professional.getTenant().getId(),
-            professional.getEmail()
+            professional.getEmail(),
+            ROLE_PROFESSIONAL
+        ));
+
+        return new AuthResponse(accessToken, refreshToken);
+    }
+
+    private AuthResponse buildAuthResponseAluna(Student student) {
+        var userDetails = usuarioDetailsService.loadUserByUsername(student.getEmail());
+
+        Map<String, Object> claims = Map.of(
+            "tenant_id", student.getTenant().getId(),
+            "role", ROLE_STUDENT
+        );
+
+        String accessToken = servicoJwt.gerarToken(userDetails, claims);
+
+        String refreshToken = refreshTokenService.salvar(new RefreshTokenData(
+            student.getId(),
+            student.getTenant().getId(),
+            student.getEmail(),
+            ROLE_STUDENT
         ));
 
         return new AuthResponse(accessToken, refreshToken);

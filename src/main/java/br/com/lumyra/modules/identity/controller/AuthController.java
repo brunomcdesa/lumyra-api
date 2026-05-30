@@ -1,9 +1,11 @@
 package br.com.lumyra.modules.identity.controller;
 
+import br.com.lumyra.modules.identity.dto.AceitarConviteRequest;
 import br.com.lumyra.modules.identity.dto.AuthResponse;
 import br.com.lumyra.modules.identity.dto.LoginRequest;
 import br.com.lumyra.modules.identity.dto.RefreshRequest;
 import br.com.lumyra.modules.identity.dto.RegisterRequest;
+import br.com.lumyra.modules.identity.service.InviteService;
 import br.com.lumyra.modules.identity.service.impl.AuthServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,10 +24,18 @@ import jakarta.validation.Valid;
 public class AuthController {
 
     private final AuthServiceImpl authService;
+    private final InviteService inviteService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(request));
+    }
+
+    @PostMapping("/accept-invite")
+    public ResponseEntity<AuthResponse> acceptInvite(
+        @Valid @RequestBody AceitarConviteRequest request
+    ) {
+        return ResponseEntity.ok(inviteService.aceitar(request));
     }
 
     @PostMapping("/login")

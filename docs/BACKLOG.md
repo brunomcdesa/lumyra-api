@@ -38,7 +38,7 @@
 - Spring Security configurado: endpoints públicos = só auth; resto exige `ROLE_PROFESSIONAL` ou `ROLE_STUDENT`.
 - **Aceite:** fluxo completo testado; token expira; refresh funciona; brute-force barrado após N tentativas; lint sem segredo hardcoded.
 
-### T0.5 — Convite + consentimento LGPD da aluna (M) · **toca G2**
+### ✅ T0.5 — Convite + consentimento LGPD da aluna (M) · **toca G2**
 - **Objetivo:**
   - `POST /api/v1/invites` (profissional convida aluna por e-mail);
   - `POST /api/v1/auth/accept-invite` (aluna define senha a partir de link com token);
@@ -49,9 +49,26 @@
   - Filtro/aspecto que **barra qualquer endpoint de coleta de dado sensível** se a aluna não tiver consentimento ativo.
 - **Aceite:** sem consentimento ativo → 403 em endpoints sensíveis (testado); exportação inclui todos os dados pessoais; eliminação remove o que deve remover.
 
-### 🔗 **Marco F0-PRONTO** — anunciar ao mobile
+### ✅ 🔗 **Marco F0-PRONTO** — anunciar ao mobile
 - OpenAPI disponível em `/v3/api-docs`. O mobile pode rodar `npm run gen:api` para gerar cliente.
-- Endpoints prontos: register, login, refresh, logout, invite, accept-invite, consent.
+- Endpoints prontos: register, login, refresh, logout, invite, accept-invite, consent,
+  `GET /me/consents`, `GET /me/export`, `DELETE /me`.
+
+> **Decisões de implementação da T0.5 (2026-05-30):**
+> - **Login da aluna habilitado** (`ROLE_STUDENT`): `/auth/login` autentica profissional **e** aluna
+>   (composite `UsuarioDetailsService`); `accept-invite` grava a senha Argon2 e já devolve tokens.
+> - **Tenant embutido no token de convite** (`"{tenantId}.{segredo}"`): `accept-invite` é público e
+>   precisa setar o contexto de RLS manualmente antes de qualquer query (G1). Só o hash SHA-256 do
+>   token é persistido (G4).
+> - **Envio de convite por e-mail é stub** (`LoggingInviteNotifier`): o link volta na resposta e é
+>   logado (em `local`); SMTP real fica como tarefa futura.
+> - **Guard de consentimento reutilizável**: anotação `@ExigeConsentimentoAtivo` + aspecto →
+>   `ConsentimentoAusenteException` (403). Ainda sem endpoint sensível real (Fases 1+); validado por
+>   teste unitário do aspecto.
+> - **`DELETE /me`**: soft-delete + `PurgaDadosJob` (`@Scheduled`) que itera tenants e faz hard-delete
+>   após `app.lgpd.retention-days` (default 30).
+> - **Testes**: padrão do repo (unitários Mockito) — não há infra de Testcontainers; isolamento de RLS
+>   validado manualmente contra o docker-compose, como na T0.3.
 
 ---
 

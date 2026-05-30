@@ -8,10 +8,12 @@ import br.com.lumyra.modules.identity.dto.LoginRequest;
 import br.com.lumyra.modules.identity.dto.RefreshRequest;
 import br.com.lumyra.modules.identity.dto.RegisterRequest;
 import br.com.lumyra.modules.identity.entity.Professional;
+import br.com.lumyra.modules.identity.entity.Student;
 import br.com.lumyra.modules.identity.entity.Tenant;
 import br.com.lumyra.modules.identity.repository.ProfessionalRepositorio;
+import br.com.lumyra.modules.identity.repository.StudentRepositorio;
 import br.com.lumyra.modules.identity.repository.TenantRepositorio;
-import br.com.lumyra.modules.identity.service.ProfessionalDetailsService;
+import br.com.lumyra.modules.identity.service.UsuarioDetailsService;
 import br.com.lumyra.service.ServicoJwt;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,9 +45,11 @@ class AuthServiceImplTest {
     @Mock
     private ProfessionalRepositorio professionalRepositorio;
     @Mock
+    private StudentRepositorio studentRepositorio;
+    @Mock
     private TenantRepositorio tenantRepositorio;
     @Mock
-    private ProfessionalDetailsService professionalDetailsService;
+    private UsuarioDetailsService usuarioDetailsService;
     @Mock
     private ServicoJwt servicoJwt;
     @Mock
@@ -68,10 +72,24 @@ class AuthServiceImplTest {
         .cref("CREF-123")
         .criadoEm(OffsetDateTime.now())
         .build();
+    private static final Student STUDENT = Student.builder()
+        .id(20)
+        .tenant(TENANT)
+        .nome("Ana")
+        .email("ana@email.com")
+        .senhaHash("$argon2aluna")
+        .ativo(true)
+        .criadoEm(OffsetDateTime.now())
+        .build();
     private static final UserDetails USER_DETAILS = User.builder()
         .username("bruno@email.com")
         .password("$argon2hash")
         .roles("PROFESSIONAL")
+        .build();
+    private static final UserDetails USER_DETAILS_ALUNA = User.builder()
+        .username("ana@email.com")
+        .password("$argon2aluna")
+        .roles("STUDENT")
         .build();
 
     @Test
@@ -81,8 +99,7 @@ class AuthServiceImplTest {
         when(tenantRepositorio.save(any())).thenReturn(TENANT);
         when(passwordEncoder.encode("senha123")).thenReturn("$argon2hash");
         when(professionalRepositorio.save(any())).thenReturn(PROFESSIONAL);
-        when(professionalDetailsService.loadUserByUsername("bruno@email.com"))
-            .thenReturn(USER_DETAILS);
+        when(usuarioDetailsService.loadUserByUsername("bruno@email.com")).thenReturn(USER_DETAILS);
         when(servicoJwt.gerarToken(any(), any(Map.class))).thenReturn("access-token");
         when(refreshTokenService.salvar(any())).thenReturn("refresh-uuid");
 
@@ -111,13 +128,12 @@ class AuthServiceImplTest {
     }
 
     @Test
-    @DisplayName("autenticar: credenciais válidas retorna tokens")
-    void autenticar_credenciaisValidas_deveRetornarTokens() {
+    @DisplayName("autenticar: profissional com credenciais válidas retorna tokens")
+    void autenticar_profissionalValido_deveRetornarTokens() {
         when(professionalRepositorio.findByEmail("bruno@email.com"))
             .thenReturn(Optional.of(PROFESSIONAL));
         when(passwordEncoder.matches("senha123", "$argon2hash")).thenReturn(true);
-        when(professionalDetailsService.loadUserByUsername("bruno@email.com"))
-            .thenReturn(USER_DETAILS);
+        when(usuarioDetailsService.loadUserByUsername("bruno@email.com")).thenReturn(USER_DETAILS);
         when(servicoJwt.gerarToken(any(), any(Map.class))).thenReturn("access-token");
         when(refreshTokenService.salvar(any())).thenReturn("refresh-uuid");
 
@@ -128,9 +144,27 @@ class AuthServiceImplTest {
     }
 
     @Test
-    @DisplayName("autenticar: email inexistente lança BadCredentialsException")
+    @DisplayName("autenticar: aluna (não é profissional) com senha válida retorna tokens")
+    void autenticar_alunaValida_deveRetornarTokens() {
+        when(professionalRepositorio.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+        when(studentRepositorio.findByEmail("ana@email.com")).thenReturn(Optional.of(STUDENT));
+        when(passwordEncoder.matches("senhaAluna", "$argon2aluna")).thenReturn(true);
+        when(usuarioDetailsService.loadUserByUsername("ana@email.com"))
+            .thenReturn(USER_DETAILS_ALUNA);
+        when(servicoJwt.gerarToken(any(), any(Map.class))).thenReturn("access-aluna");
+        when(refreshTokenService.salvar(any())).thenReturn("refresh-aluna");
+
+        var response = authService.autenticar(new LoginRequest("ana@email.com", "senhaAluna"));
+
+        assertThat(response.accessToken()).isEqualTo("access-aluna");
+        assertThat(response.refreshToken()).isEqualTo("refresh-aluna");
+    }
+
+    @Test
+    @DisplayName("autenticar: e-mail inexistente em ambas as tabelas lança BadCredentials")
     void autenticar_emailInexistente_deveLancarBadCredentials() {
         when(professionalRepositorio.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(studentRepositorio.findByEmail(anyString())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.autenticar(
             new LoginRequest("x@email.com", "senha123")))
@@ -138,7 +172,7 @@ class AuthServiceImplTest {
     }
 
     @Test
-    @DisplayName("autenticar: senha errada lança BadCredentialsException")
+    @DisplayName("autenticar: profissional com senha errada lança BadCredentials")
     void autenticar_senhaErrada_deveLancarBadCredentials() {
         when(professionalRepositorio.findByEmail("bruno@email.com"))
             .thenReturn(Optional.of(PROFESSIONAL));
@@ -156,8 +190,7 @@ class AuthServiceImplTest {
         when(professionalRepositorio.findByEmail("bruno@email.com"))
             .thenReturn(Optional.of(PROFESSIONAL));
         when(passwordEncoder.matches("senha123", "$argon2hash")).thenReturn(true);
-        when(professionalDetailsService.loadUserByUsername("bruno@email.com"))
-            .thenReturn(USER_DETAILS);
+        when(usuarioDetailsService.loadUserByUsername("bruno@email.com")).thenReturn(USER_DETAILS);
         when(servicoJwt.gerarToken(any(), any(Map.class))).thenReturn("access-token");
         when(refreshTokenService.salvar(any())).thenReturn("refresh-uuid");
 
@@ -168,13 +201,12 @@ class AuthServiceImplTest {
     }
 
     @Test
-    @DisplayName("renovar: refresh válido retorna novos tokens")
-    void renovar_refreshValido_deveRetornarNovosTokens() {
-        var data = new RefreshTokenData(10, 1, "bruno@email.com");
+    @DisplayName("renovar: refresh de profissional retorna novos tokens")
+    void renovar_refreshProfissional_deveRetornarNovosTokens() {
+        var data = new RefreshTokenData(10, 1, "bruno@email.com", "PROFESSIONAL");
         when(refreshTokenService.buscar("refresh-uuid")).thenReturn(Optional.of(data));
         when(professionalRepositorio.findById(10)).thenReturn(Optional.of(PROFESSIONAL));
-        when(professionalDetailsService.loadUserByUsername("bruno@email.com"))
-            .thenReturn(USER_DETAILS);
+        when(usuarioDetailsService.loadUserByUsername("bruno@email.com")).thenReturn(USER_DETAILS);
         when(servicoJwt.gerarToken(any(), any(Map.class))).thenReturn("new-access");
         when(refreshTokenService.salvar(any())).thenReturn("new-refresh");
 
@@ -183,6 +215,24 @@ class AuthServiceImplTest {
         assertThat(response.accessToken()).isEqualTo("new-access");
         assertThat(response.refreshToken()).isEqualTo("new-refresh");
         verify(refreshTokenService).revogar("refresh-uuid");
+    }
+
+    @Test
+    @DisplayName("renovar: refresh de aluna recarrega pela StudentRepositorio")
+    void renovar_refreshAluna_deveRetornarNovosTokens() {
+        var data = new RefreshTokenData(20, 1, "ana@email.com", "STUDENT");
+        when(refreshTokenService.buscar("refresh-aluna")).thenReturn(Optional.of(data));
+        when(studentRepositorio.findById(20)).thenReturn(Optional.of(STUDENT));
+        when(usuarioDetailsService.loadUserByUsername("ana@email.com"))
+            .thenReturn(USER_DETAILS_ALUNA);
+        when(servicoJwt.gerarToken(any(), any(Map.class))).thenReturn("new-access-aluna");
+        when(refreshTokenService.salvar(any())).thenReturn("new-refresh-aluna");
+
+        var response = authService.renovar(new RefreshRequest("refresh-aluna"));
+
+        assertThat(response.accessToken()).isEqualTo("new-access-aluna");
+        verify(studentRepositorio).findById(20);
+        verify(refreshTokenService).revogar("refresh-aluna");
     }
 
     @Test

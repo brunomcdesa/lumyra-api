@@ -58,3 +58,10 @@ app:
     rate-limit:
       max-attempts: ${AUTH_RATE_LIMIT_MAX_ATTEMPTS:5}
       window-seconds: ${AUTH_RATE_LIMIT_WINDOW_SECONDS:900}
+  invite:
+    expiration-hours: ${INVITE_EXPIRATION_HOURS:72}
+    base-url: ${INVITE_BASE_URL:https://app.lumyra.com.br/aceitar-convite?token=}
+  lgpd:
+    terms-version: ${LGPD_TERMS_VERSION:1.0}
+    retention-days: ${LGPD_RETENTION_DAYS:30}
+    purge-cron: ${LGPD_PURGE_CRON:0 0 3 * * *}
