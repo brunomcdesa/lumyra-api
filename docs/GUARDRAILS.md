@@ -35,7 +35,7 @@
 ## G4 — Segurança de dados
 
 - Criptografia em trânsito (TLS 1.2+) e em repouso (Postgres com cripto no disco; object storage com SSE).
-- Senhas com **Argon2** (Spring Security `Argon2PasswordEncoder`); JWT curto (~15min) + refresh rotativo; sessão revogável (lista de refresh tokens revogados em Redis).
+- Senhas com **Argon2** (Spring Security `Argon2PasswordEncoder`); JWT curto (~15min) + refresh rotativo; sessão revogável (refresh tokens em cache local Caffeine, válido enquanto a instância for única — migrar para store distribuído ao escalar horizontalmente).
 - PDFs/fotos em bucket privado; **apenas URLs assinadas de curta duração** (TTL ≤ 5min).
 - Segredos fora do código (variáveis de ambiente / Spring Cloud Config / cofre). Chaves em KMS.
 - Rate limit no login (`/auth/login`) com bucket por IP + por usuário, anti brute-force.

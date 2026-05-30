@@ -1,7 +1,7 @@
 package br.com.lumyra.core.auth;
 
 /**
- * Dados guardados no Redis para um refresh token. {@code role} é
+ * Dados associados a um refresh token. {@code role} é
  * {@code PROFESSIONAL} ou {@code STUDENT} e direciona qual repositório recarrega
  * o usuário na renovação.
  */

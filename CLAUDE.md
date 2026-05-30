@@ -14,7 +14,7 @@ Backend do **Lumyra**, app mobile **B2B2C** para profissionais de educação fí
 ## Stack
 
 - **Java 21** (LTS) · **Spring Boot 3.x** · **Maven**.
-- **Spring Web** (REST), **Spring Security** (JWT + refresh), **Spring Data JPA** (entidades), **Spring Data Redis** (cache + fila leve).
+- **Spring Web** (REST), **Spring Security** (JWT + refresh), **Spring Data JPA** (entidades), **Caffeine** (cache local in-memory — sem Redis no momento).
 - **PostgreSQL 16** com **Row-Level Security (RLS)** ligado em toda tabela com dado de aluna.
 - **Flyway** para migrações versionadas.
 - **MapStruct** para mapeamento entidade↔DTO.
@@ -30,7 +30,7 @@ Espelha os módulos da análise. Cada um é autocontido (controller, service, re
 ```
 src/main/java/com/lumyra/
 ├── LumyraApplication.java
-├── config/              # SecurityConfig, RedisConfig, OpenApiConfig, RlsContext...
+├── config/              # SecurityConfig, OpenApiConfig, RlsContext...
 ├── core/                # filtros JWT, exception handler, audit, RLS interceptor
 ├── shared/
 │   ├── clinical/        # FUNÇÕES PURAS de cálculo clínico (sem Spring); testáveis isoladas
@@ -85,7 +85,7 @@ Antes de finalizar qualquer tarefa, confira:
 - O **OpenAPI gerado é o contrato** com o repo mobile — toda mudança de breaking change sobe versão.
 
 ### Jobs assíncronos
-- Geração de laudo PDF, push e e-mail de convite vão para fila (Spring + Redis via `@Async` + Redis Streams, ou Spring Batch). Síncrono só CRUD e cálculo.
+- Geração de laudo PDF, push e e-mail de convite vão para fila (Spring `@Async` + fila in-memory, ou Spring Batch; reavaliar fila externa ao escalar). Síncrono só CRUD e cálculo.
 - Laudo tem estado explícito: `PENDING | GENERATED | FAILED`. Reprocessamento idempotente.
 
 ### Migrações
@@ -100,7 +100,7 @@ Antes de finalizar qualquer tarefa, confira:
 ./mvnw test                           # unitários (sem Spring)
 ./mvnw verify                         # tudo: unit + integração (Testcontainers)
 ./mvnw spotless:apply                 # formatação
-docker compose up -d                  # postgres + redis local
+docker compose up -d                  # postgres local
 ```
 
 ## Definição de pronto (toda tarefa de backend)

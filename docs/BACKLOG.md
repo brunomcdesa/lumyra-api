@@ -17,10 +17,10 @@
 > Nenhum dado de aluna entra antes desta fase. RLS e consentimento primeiro.
 
 ### ✅ T0.1 — Bootstrap do projeto Spring Boot (S)
-- **Objetivo:** gerar projeto Spring Boot 3.x · Java 21 · Maven, com dependências: `spring-boot-starter-web`, `spring-boot-starter-security`, `spring-boot-starter-data-jpa`, `spring-boot-starter-data-redis`, `spring-boot-starter-validation`, `flyway-core`, `flyway-database-postgresql`, `postgresql`, `springdoc-openapi-starter-webmvc-ui`, `mapstruct`, `lombok`, `argon2-jvm`.
+- **Objetivo:** gerar projeto Spring Boot 3.x · Java 21 · Maven, com dependências: `spring-boot-starter-web`, `spring-boot-starter-security`, `spring-boot-starter-data-jpa`, `caffeine` (cache local), `spring-boot-starter-validation`, `flyway-core`, `flyway-database-postgresql`, `postgresql`, `springdoc-openapi-starter-webmvc-ui`, `mapstruct`, `lombok`, `argon2-jvm`.
 - Estrutura de pacotes (`config/`, `core/`, `shared/`, `modules/`) criada e vazia.
 - `application.yml` com profiles `local`, `test`, `prod`.
-- `docker-compose.yml` com Postgres 16 e Redis 7 para dev local.
+- `docker-compose.yml` com Postgres 16 para dev local. (Redis removido — cache/rate-limit/refresh tokens via Caffeine in-memory; reavaliar store distribuído ao escalar.)
 - `/health` (Actuator) público; demais endpoints exigem auth (a configurar em T0.4).
 - **Aceite:** `./mvnw spring-boot:run` sobe; `GET /health` 200; `./mvnw test` verde.
 
@@ -34,7 +34,7 @@
 - **Aceite:** teste unitário verifica que o interceptor injeta `SET LOCAL app.current_tenant = ?` antes de queries; validação de isolamento feita manualmente contra o docker-compose local.
 
 ### ✅ T0.4 — Autenticação JWT + cadastro de profissional (M) · **toca G4, G6**
-- **Objetivo:** `POST /api/v1/auth/register` (profissional com CREF, e-mail, senha), `POST /api/v1/auth/login` (retorna access + refresh), `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout` (revoga refresh em Redis). Senha com Argon2. JWT curto (15min) + refresh rotativo (30 dias). Rate limit no `/login` por IP (anti brute-force).
+- **Objetivo:** `POST /api/v1/auth/register` (profissional com CREF, e-mail, senha), `POST /api/v1/auth/login` (retorna access + refresh), `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout` (revoga refresh no cache local Caffeine). Senha com Argon2. JWT curto (15min) + refresh rotativo (30 dias). Rate limit no `/login` por IP (anti brute-force).
 - Spring Security configurado: endpoints públicos = só auth; resto exige `ROLE_PROFESSIONAL` ou `ROLE_STUDENT`.
 - **Aceite:** fluxo completo testado; token expira; refresh funciona; brute-force barrado após N tentativas; lint sem segredo hardcoded.
 
@@ -106,7 +106,7 @@
 - **Aceite:** ordenação correta; comparação devolve estrutura tipada (não diff textual).
 
 ### T1.6 — Geração de laudo PDF assíncrona (M) · **toca G4, G5**
-- **Objetivo:** ao finalizar avaliação, enfileirar job de geração de PDF (Spring `@Async` + fila simples em Redis ou Spring Batch). Estado `PENDING → GENERATED | FAILED`. PDF gravado em object storage privado; `GET /api/v1/assessments/{id}/report` devolve **URL pré-assinada** (TTL 5min).
+- **Objetivo:** ao finalizar avaliação, enfileirar job de geração de PDF (Spring `@Async` + fila in-memory ou Spring Batch; reavaliar fila externa ao escalar). Estado `PENDING → GENERATED | FAILED`. PDF gravado em object storage privado; `GET /api/v1/assessments/{id}/report` devolve **URL pré-assinada** (TTL 5min).
 - Bibliotecas sugeridas: **OpenPDF** ou **iText** (verificar licença para iText — AGPL pode ser problema; OpenPDF é LGPL).
 - **Aceite:** finalização não bloqueia requisição (retorna 202); job retentável; sem dado sensível em log; URL expira.
 

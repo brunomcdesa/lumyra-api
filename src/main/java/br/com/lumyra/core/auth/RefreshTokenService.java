@@ -1,53 +1,49 @@
 package br.com.lumyra.core.auth;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Guarda refresh tokens em cache local (Caffeine) com expiração automática.
+ *
+ * <p>Store em memória: vale para uma única instância (WEB_CONCURRENCY=1) e é
+ * perdido a cada restart/redeploy — nesse caso as sessões em aberto precisam
+ * refazer login. Suficiente para o estágio atual; trocar por store distribuído
+ * quando houver mais de uma instância.
+ */
 @Service
-@RequiredArgsConstructor
 public class RefreshTokenService {
-
-    private static final String KEY_PREFIX = "lumyra:rt:";
-
-    private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
 
     @Value("${app.jwt.refresh-expiration-ms}")
     private long refreshExpirationMs;
 
+    private Cache<String, RefreshTokenData> tokens;
+
+    @PostConstruct
+    void inicializar() {
+        tokens = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofMillis(refreshExpirationMs))
+            .build();
+    }
+
     public String salvar(RefreshTokenData data) {
         String uuid = UUID.randomUUID().toString();
-        try {
-            String json = objectMapper.writeValueAsString(data);
-            redisTemplate.opsForValue().set(KEY_PREFIX + uuid, json,
-                Duration.ofMillis(refreshExpirationMs));
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Erro ao serializar refresh token", ex);
-        }
+        tokens.put(uuid, data);
         return uuid;
     }
 
     public Optional<RefreshTokenData> buscar(String uuid) {
-        String json = redisTemplate.opsForValue().get(KEY_PREFIX + uuid);
-        if (json == null) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(objectMapper.readValue(json, RefreshTokenData.class));
-        } catch (JsonProcessingException ex) {
-            return Optional.empty();
-        }
+        return Optional.ofNullable(tokens.getIfPresent(uuid));
     }
 
     public void revogar(String uuid) {
-        redisTemplate.delete(KEY_PREFIX + uuid);
+        tokens.invalidate(uuid);
     }
 }
