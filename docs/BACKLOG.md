@@ -28,12 +28,12 @@
 - **Objetivo:** Flyway configurado, primeira migração `V001__init.sql` criando extensões necessárias (`pgcrypto`, `citext`) e nada mais.
 - **Aceite:** Flyway aplica V001 no Postgres do docker-compose no startup em `local`; `./mvnw test` verde.
 
-### T0.3 — Multi-tenancy com RLS (M) · **toca G1**
+### ✅ T0.3 — Multi-tenancy com RLS (M) · **toca G1**
 - **Objetivo:** modelar `tenant`, `professional`, `student`, `professional_student_link`. Habilitar RLS em `student` e em todas as tabelas com dado de aluna criadas a partir daqui. Implementar `RlsTenantContextInterceptor` que executa `SET LOCAL app.current_tenant = ?` na conexão JDBC antes de cada requisição autenticada, lendo `tenant_id` do contexto de segurança.
 - **Migrações:** V002 cria tabelas; V003 habilita RLS + cria policies (`USING (tenant_id::text = current_setting('app.current_tenant', true))`).
 - **Aceite:** teste unitário verifica que o interceptor injeta `SET LOCAL app.current_tenant = ?` antes de queries; validação de isolamento feita manualmente contra o docker-compose local.
 
-### T0.4 — Autenticação JWT + cadastro de profissional (M) · **toca G4, G6**
+### ✅ T0.4 — Autenticação JWT + cadastro de profissional (M) · **toca G4, G6**
 - **Objetivo:** `POST /api/v1/auth/register` (profissional com CREF, e-mail, senha), `POST /api/v1/auth/login` (retorna access + refresh), `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout` (revoga refresh em Redis). Senha com Argon2. JWT curto (15min) + refresh rotativo (30 dias). Rate limit no `/login` por IP (anti brute-force).
 - Spring Security configurado: endpoints públicos = só auth; resto exige `ROLE_PROFESSIONAL` ou `ROLE_STUDENT`.
 - **Aceite:** fluxo completo testado; token expira; refresh funciona; brute-force barrado após N tentativas; lint sem segredo hardcoded.
